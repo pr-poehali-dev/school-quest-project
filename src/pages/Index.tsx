@@ -13,10 +13,17 @@ import { toast } from '@/hooks/use-toast';
 
 interface User {
   name: string;
+  email: string;
   level: number;
   points: number;
   achievements: string[];
   completedQuests: number[];
+}
+
+interface RegisteredUser {
+  email: string;
+  password: string;
+  name: string;
 }
 
 interface Question {
@@ -95,25 +102,66 @@ export default function Index() {
   const [showResults, setShowResults] = useState(false);
   const [inputAnswer, setInputAnswer] = useState('');
   const [selectedAnswer, setSelectedAnswer] = useState('');
+  const [registeredUsers, setRegisteredUsers] = useState<RegisteredUser[]>([]);
 
-  const handleLogin = (name: string) => {
-    if (!name.trim()) {
-      toast({ title: 'Введи своё имя!', variant: 'destructive' });
+  const handleLogin = (email: string, password: string) => {
+    if (!email.trim() || !password.trim()) {
+      toast({ title: 'Заполни все поля!', variant: 'destructive' });
       return;
     }
+
+    const foundUser = registeredUsers.find(u => u.email === email && u.password === password);
+    if (!foundUser) {
+      toast({ title: 'Неверная почта или пароль!', variant: 'destructive' });
+      return;
+    }
+
     setUser({
-      name: name.trim(),
+      name: foundUser.name,
+      email: foundUser.email,
       level: 1,
       points: 0,
       achievements: [],
       completedQuests: []
     });
     setIsLoggedIn(true);
-    toast({ title: `Привет, ${name}! 👋`, description: 'Добро пожаловать в мир квестов!' });
+    toast({ title: `Привет, ${foundUser.name}! 👋`, description: 'Добро пожаловать в мир квестов!' });
   };
 
-  const handleRegister = (name: string) => {
-    handleLogin(name);
+  const handleRegister = (fullName: string, email: string, password: string) => {
+    if (!fullName.trim() || !email.trim() || !password.trim()) {
+      toast({ title: 'Заполни все поля!', variant: 'destructive' });
+      return;
+    }
+
+    if (!email.includes('@')) {
+      toast({ title: 'Введи корректную почту!', variant: 'destructive' });
+      return;
+    }
+
+    if (password.length < 6) {
+      toast({ title: 'Пароль должен быть минимум 6 символов!', variant: 'destructive' });
+      return;
+    }
+
+    if (registeredUsers.find(u => u.email === email)) {
+      toast({ title: 'Пользователь с такой почтой уже существует!', variant: 'destructive' });
+      return;
+    }
+
+    const newUser: RegisteredUser = { email, password, name: fullName };
+    setRegisteredUsers([...registeredUsers, newUser]);
+
+    setUser({
+      name: fullName,
+      email,
+      level: 1,
+      points: 0,
+      achievements: [],
+      completedQuests: []
+    });
+    setIsLoggedIn(true);
+    toast({ title: `Добро пожаловать, ${fullName}! 🎉`, description: 'Регистрация успешна!' });
   };
 
   const startQuest = (quest: Quest) => {
@@ -219,37 +267,24 @@ export default function Index() {
               </TabsList>
               <TabsContent value="login" className="space-y-4 pt-4">
                 <div className="space-y-2">
-                  <Label htmlFor="login-name">Твоё имя</Label>
+                  <Label htmlFor="login-email">Электронная почта</Label>
                   <Input 
-                    id="login-name" 
-                    placeholder="Введи своё имя"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        handleLogin((e.target as HTMLInputElement).value);
-                      }
-                    }}
+                    id="login-email" 
+                    type="email"
+                    placeholder="example@mail.ru"
                   />
                 </div>
-                <Button 
-                  className="w-full text-lg font-semibold" 
-                  size="lg"
-                  onClick={(e) => {
-                    const input = document.getElementById('login-name') as HTMLInputElement;
-                    handleLogin(input.value);
-                  }}
-                >
-                  Войти <Icon name="ArrowRight" className="ml-2" />
-                </Button>
-              </TabsContent>
-              <TabsContent value="register" className="space-y-4 pt-4">
                 <div className="space-y-2">
-                  <Label htmlFor="register-name">Твоё имя</Label>
+                  <Label htmlFor="login-password">Пароль</Label>
                   <Input 
-                    id="register-name" 
-                    placeholder="Введи своё имя"
+                    id="login-password" 
+                    type="password"
+                    placeholder="Введи пароль"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
-                        handleRegister((e.target as HTMLInputElement).value);
+                        const emailInput = document.getElementById('login-email') as HTMLInputElement;
+                        const passwordInput = document.getElementById('login-password') as HTMLInputElement;
+                        handleLogin(emailInput.value, passwordInput.value);
                       }
                     }}
                   />
@@ -258,8 +293,54 @@ export default function Index() {
                   className="w-full text-lg font-semibold" 
                   size="lg"
                   onClick={() => {
-                    const input = document.getElementById('register-name') as HTMLInputElement;
-                    handleRegister(input.value);
+                    const emailInput = document.getElementById('login-email') as HTMLInputElement;
+                    const passwordInput = document.getElementById('login-password') as HTMLInputElement;
+                    handleLogin(emailInput.value, passwordInput.value);
+                  }}
+                >
+                  Войти <Icon name="ArrowRight" className="ml-2" />
+                </Button>
+              </TabsContent>
+              <TabsContent value="register" className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <Label htmlFor="register-fullname">ФИО</Label>
+                  <Input 
+                    id="register-fullname" 
+                    placeholder="Иванов Иван Иванович"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="register-email">Электронная почта</Label>
+                  <Input 
+                    id="register-email" 
+                    type="email"
+                    placeholder="example@mail.ru"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="register-password">Пароль</Label>
+                  <Input 
+                    id="register-password" 
+                    type="password"
+                    placeholder="Минимум 6 символов"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const fullNameInput = document.getElementById('register-fullname') as HTMLInputElement;
+                        const emailInput = document.getElementById('register-email') as HTMLInputElement;
+                        const passwordInput = document.getElementById('register-password') as HTMLInputElement;
+                        handleRegister(fullNameInput.value, emailInput.value, passwordInput.value);
+                      }
+                    }}
+                  />
+                </div>
+                <Button 
+                  className="w-full text-lg font-semibold" 
+                  size="lg"
+                  onClick={() => {
+                    const fullNameInput = document.getElementById('register-fullname') as HTMLInputElement;
+                    const emailInput = document.getElementById('register-email') as HTMLInputElement;
+                    const passwordInput = document.getElementById('register-password') as HTMLInputElement;
+                    handleRegister(fullNameInput.value, emailInput.value, passwordInput.value);
                   }}
                 >
                   Зарегистрироваться <Icon name="Sparkles" className="ml-2" />
